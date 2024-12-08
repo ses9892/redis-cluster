@@ -1,9 +1,6 @@
 package com.chat.pubsub.controller;
 
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.AllArgsConstructor;
 
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
+
+import org.springframework.data.redis.connection.RedisConnection;
 
 @Slf4j
 @RestController
@@ -109,18 +110,68 @@ public class PublishController {
     }
 
     @GetMapping("/data/{key}")
-    public ResponseEntity<?> getData(@PathVariable String key) {
+    public ResponseEntity<?> getData(@PathVariable("key") String key) {
         try {
             Object value = redisTemplate.opsForValue().get(key);
             if (value != null) {
-                return ResponseEntity.ok(value);
+                Map<String, Object> response = new HashMap<>();
+                response.put("value", value);
+                return ResponseEntity.ok(response);
             }
             return ResponseEntity.notFound().build();
-        } catch (RedisConnectionFailureException e) {
-            log.error("Redis connection failed", e);
+        } catch (Exception e) {
+            log.error("Failed to get data", e);
             return ResponseEntity
-                .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new ErrorResponse("Redis connection failed"));
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Failed to get data: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/cluster/info")
+    public ResponseEntity<?> getClusterInfo() {
+        try {
+            Map<String, Object> clusterInfo = redisTemplate.execute((RedisConnection connection) -> {
+                Properties clusterProps = connection.info("cluster");
+                Properties replicationProps = connection.info("replication");
+                Properties serverProps = connection.info("server");
+                
+                // 디버깅을 위한 전체 정보 출력
+                log.info("=== Redis Cluster Info ===");
+                clusterProps.forEach((k, v) -> log.info("Cluster - {}: {}", k, v));
+                replicationProps.forEach((k, v) -> log.info("Replication - {}: {}", k, v));
+                
+                Map<String, Object> result = new HashMap<>();
+                // 클러스터 정보
+                result.put("nodeId", clusterProps.getProperty("cluster_my_id"));
+                result.put("clusterState", clusterProps.getProperty("cluster_state"));
+                result.put("clusterSlotsAssigned", clusterProps.getProperty("cluster_slots_assigned"));
+                result.put("clusterSlotsOk", clusterProps.getProperty("cluster_slots_ok"));
+                
+                // 복제 정보
+                result.put("role", replicationProps.getProperty("role"));
+                result.put("connectedSlaves", replicationProps.getProperty("connected_slaves"));
+                
+                // 서버 정보
+                result.put("redis_version", serverProps.getProperty("redis_version"));
+                result.put("tcp_port", serverProps.getProperty("tcp_port"));
+                result.put("uptime_in_seconds", serverProps.getProperty("uptime_in_seconds"));
+                
+                if ("slave".equals(replicationProps.getProperty("role"))) {
+                    result.put("masterHost", replicationProps.getProperty("master_host"));
+                    result.put("masterPort", replicationProps.getProperty("master_port"));
+                    result.put("masterLinkStatus", replicationProps.getProperty("master_link_status"));
+                }
+                
+                return result;
+            });
+            
+            return ResponseEntity.ok(clusterInfo);
+            
+        } catch (Exception e) {
+            log.error("Failed to get cluster info", e);
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Failed to get cluster info: " + e.getMessage()));
         }
     }
 }

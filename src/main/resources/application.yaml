@@ -9,12 +9,12 @@ spring:
     redis:
       cluster:
         nodes:
-          - # master1
-          - # master2
-          - # master3
-          - # slave1
-          - # slave2
-          - # slave3
+          - 172.29.3.164:6379  # master1
+          - 172.29.3.164:6380  # master2
+          - 172.29.3.164:6381  # master3
+          - 172.29.3.164:6382  # slave1
+          - 172.29.3.164:6383  # slave2
+          - 172.29.3.164:6384  # slave3
         max-redirects: 3
       timeout: 30000
       connect-timeout: 30000
