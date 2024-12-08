@@ -1,0 +1,31 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: redis-pubsub
+
+  data:
+    redis:
+      cluster:
+        nodes:
+          - # master1
+          - # master2
+          - # master3
+          - # slave1
+          - # slave2
+          - # slave3
+        max-redirects: 3
+      timeout: 30000
+      connect-timeout: 30000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1
+        cluster:
+          refresh:
+            adaptive: true
+            period: 1000
+          topology-refresh-options: ALL

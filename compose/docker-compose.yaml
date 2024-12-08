@@ -1,0 +1,210 @@
+version: '3'
+
+networks:
+  redis-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+
+x-redis-common: &redis-common
+  image: redis:6.2
+  networks:
+    - redis-net
+  command: >
+    redis-server 
+    --port 6379
+    --bind 0.0.0.0
+    --protected-mode no
+    --cluster-enabled yes
+    --cluster-node-timeout 5000
+    --appendonly yes
+    --cluster-require-full-coverage no
+    --cluster-allow-reads-when-down yes
+
+services:
+  redis-node-1:
+    <<: *redis-common
+    container_name: redis-node-1
+    ports:
+      - "6379:6379"
+      - "16379:16379"
+    volumes:
+      - redis_node1_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.2
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6379.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6379
+      --cluster-announce-bus-port 16379
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-node-2:
+    <<: *redis-common
+    container_name: redis-node-2
+    ports:
+      - "6380:6379"
+      - "16380:16379"
+    volumes:
+      - redis_node2_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.3
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6380.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6380
+      --cluster-announce-bus-port 16380
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-node-3:
+    <<: *redis-common
+    container_name: redis-node-3
+    ports:
+      - "6381:6379"
+      - "16381:16379"
+    volumes:
+      - redis_node3_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.4
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6381.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6381
+      --cluster-announce-bus-port 16381
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-node-4:
+    <<: *redis-common
+    container_name: redis-node-4
+    ports:
+      - "6382:6379"
+      - "16382:16379"
+    volumes:
+      - redis_node4_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.5
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6382.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6382
+      --cluster-announce-bus-port 16382
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-node-5:
+    <<: *redis-common
+    container_name: redis-node-5
+    ports:
+      - "6383:6379"
+      - "16383:16379"
+    volumes:
+      - redis_node5_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.6
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6383.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6383
+      --cluster-announce-bus-port 16383
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-node-6:
+    <<: *redis-common
+    container_name: redis-node-6
+    ports:
+      - "6384:6379"
+      - "16384:16379"
+    volumes:
+      - redis_node6_data:/data
+    networks:
+      redis-net:
+        ipv4_address: 172.30.0.7
+    command: >
+      redis-server 
+      --port 6379
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-enabled yes
+      --cluster-config-file nodes-6384.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip ${HOST_IP:-172.29.3.164}
+      --cluster-announce-port 6384
+      --cluster-announce-bus-port 16384
+      --cluster-require-full-coverage no
+      --cluster-allow-reads-when-down yes
+
+  redis-cluster-init:
+    image: redis:6.2
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    command: >
+      bash -c "echo 'yes' | redis-cli --cluster create 
+      ${HOST_IP:-172.29.3.164}:6379 
+      ${HOST_IP:-172.29.3.164}:6380 
+      ${HOST_IP:-172.29.3.164}:6381 
+      ${HOST_IP:-172.29.3.164}:6382 
+      ${HOST_IP:-172.29.3.164}:6383 
+      ${HOST_IP:-172.29.3.164}:6384 
+      --cluster-replicas 1"
+    networks:
+      - redis-net
+
+volumes:
+  redis_node1_data:
+  redis_node2_data:
+  redis_node3_data:
+  redis_node4_data:
+  redis_node5_data:
+  redis_node6_data:
